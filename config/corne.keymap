@@ -16,6 +16,29 @@
 };
 
 / {
+        combos {
+                compatible = "zmk,combos";
+
+                combo_jlk_enter {
+                        timeout-ms = <50>;
+                        key-positions = <19 20 21>; /* J K L */
+                        bindings = <&kp RET>;
+                        layers = <0>;
+                };
+                combo_lk_backspace {
+                        timeout-ms = <50>;
+                        key-positions = <20 21>; /* K L */
+                        bindings = <&kp BSPC>;
+                        layers = <0>;
+                };
+                combo_sfd_escape {
+                        timeout-ms = <50>;
+                        key-positions = <14 15 16>; /* S D F */
+                        bindings = <&kp ESC>;
+                        layers = <0>;
+                };
+        };
+
         conditional_layers {
                 compatible = "zmk,conditional-layers";
                 lighting { if-layers = <1 2>; then-layer = <3>; };
@@ -40,13 +63,13 @@
                 lower_layer {
 // -----------------------------------------------------------------------------------------
 // |  TAB |  1  |  2  |  3  |  4  |  5  |   |  6  |  7  |  8  |  9  |  0  | BSPC |
-// | BTCLR| BT1 | BT2 | BT3 | BT4 | BT5 |   | LFT | DWN |  UP | RGB |     |      |
-// | SHFT |     |     |     |     |     |   |     |     |     |     |     |      |
+// | BTCLR| BT1 | BT2 | BT3 | BT4 | BT5 |   |     |     |  UP | RGB |     |      |
+// | SHFT |     |     |     |     |     |   |     | LFT | DWN | RGT |     |      |
 //                    | GUI |     | ENT |   | SPC |     | ALT |
                         bindings = <
    &kp TAB    &kp N1       &kp N2       &kp N3       &kp N4       &kp N5         &kp N6   &kp N7   &kp N8 &kp N9    &kp N0 &kp BSPC
-   &bt BT_CLR &bt BT_SEL 0 &bt BT_SEL 1 &bt BT_SEL 2 &bt BT_SEL 3 &bt BT_SEL 4   &kp LEFT &kp DOWN &kp UP &rgb_ug RGB_TOG &trans &trans
-   &kp LSHFT  &trans       &trans       &trans       &trans       &trans         &trans   &trans   &trans &trans    &trans &trans
+   &bt BT_CLR &bt BT_SEL 0 &bt BT_SEL 1 &bt BT_SEL 2 &bt BT_SEL 3 &bt BT_SEL 4   &trans   &trans   &kp UP   &rgb_ug RGB_TOG &trans &trans
+   &kp LSHFT  &trans       &trans       &trans       &trans       &trans         &trans   &kp LEFT &kp DOWN &kp RIGHT       &trans &trans
                                     &kp LGUI     &trans       &kp RET      &kp SPACE  &trans   &kp RALT
                         >;
                 };
