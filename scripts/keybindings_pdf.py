@@ -123,83 +123,76 @@ def render(layout):
     pdf = canvas.Canvas(buffer, pagesize=(width, height), invariant=1)
     pdf.setTitle('Corne · Tastenbelegung')
     pdf.setAuthor('zmk-config')
-    margin, gap = 38, 20
-    cell = (width - 2 * margin - gap) / 12
+    margin, gap = 30, 22
+    panel = (width - 2 * margin - gap) / 2
+    split = 7
+    cell = (panel - split) / 12
     navy, ink, teal = map(HexColor, ('#14243A', '#22334A', '#006F71'))
     pale, soft, white = map(HexColor, ('#EBF2F5', '#F5F7FA', '#FFFFFF'))
-    page = 0
 
-    def text(x, y, value, size=10, color=ink, bold=False, center=False):
+    def text(x, y, value, size: float = 10, color=ink, bold=False, center=False):
         font = 'Helvetica-Bold' if bold else 'Helvetica'
         pdf.setFont(font, size)
         pdf.setFillColor(color)
         draw = pdf.drawCentredString if center else pdf.drawString
         draw(x, y, value)
 
-    def start(subtitle):
-        nonlocal page
-        page += 1
-        pdf.setFillColor(navy)
-        pdf.rect(0, height - 84, width, 84, fill=1, stroke=0)
-        text(margin, height - 38, 'Corne · Tastenbelegung', 25, white, True)
-        text(margin, height - 61, subtitle, 11, white)
-        text(margin, 25, 'Deutsch (QWERTZ) · · übernimmt darunter · × deaktiviert · ^ und ` sind ggf. Tottasten', 9)
-        text(width - margin - 15, 25, str(page), 9, teal, True)
-
-    def draw_layer(name, entries, y):
-        text(margin, y, name, 15, teal, True)
+    def draw_layer(name, entries, x0, y, row_height):
+        text(x0, y, name, 13, teal, True)
         for row in range(4):
             for side in range(2):
                 count = 6 if row < 3 else 3
                 for col in range(count):
                     index = row * 12 + side * 6 + col if row < 3 else 36 + side * 3 + col
-                    lane = col + (0 if row < 3 else 3 if side == 0 else 0)
-                    x = margin + side * (6 * cell + gap) + lane * cell
-                    yy = y - 34 - row * 25
+                    lane = col + (3 if row == 3 and side == 0 else 0)
+                    x = x0 + side * (6 * cell + split) + lane * cell
+                    yy = y - 9 - (row + 1) * row_height
                     value = entries[index]
                     dim = value in ('·', '×')
                     pdf.setFillColor(soft if dim else pale)
-                    pdf.roundRect(x, yy, cell - 3, 21, 4, fill=1, stroke=0)
-                    words = value.split()
-                    lines = [value] if len(value) <= 13 or len(words) == 1 else [' '.join(words[:-1]), words[-1]]
+                    pdf.roundRect(x, yy, cell - 2, row_height - 3, 3, fill=1, stroke=0)
+                    # Multiword actions get two centred lines; shorten the font if needed.
+                    words = value.rsplit(' ', 1)
+                    lines = words if len(words) == 2 and len(value) > 9 else [value]
                     for i, line in enumerate(lines):
-                        size = min(9, 9 * (cell - 9) / max(1, pdf.stringWidth(line, 'Helvetica', 9)))
-                        text(x + (cell - 3) / 2, yy + (7 if len(lines) == 1 else 12 - 8 * i),
-                             line, size, color=ink if not dim else teal, center=True)
+                        size = min(8.2, 8.2 * (cell - 5) / max(1, pdf.stringWidth(line, 'Helvetica', 8.2)))
+                        baseline = yy + (row_height - 3) / 2 - 2.5 + (3.8 if len(lines) == 2 else 0) - 7.6 * i
+                        text(x + (cell - 2) / 2, baseline, line, size, color=ink if not dim else teal, center=True)
 
-    def draw_combos(rows, y):
-        offsets = [margin, 365, 515, 665]
-        for x, value in zip(offsets, ('Tasten (Basis-Beschriftung)', 'Aktion', 'Ebene', 'Zeitfenster')):
-            text(x, y, value, 10, teal, True)
-        for chord, action, scope, timeout in rows:
-            y -= 20
+    pdf.setFillColor(navy)
+    pdf.rect(0, height - 62, width, 62, fill=1, stroke=0)
+    text(margin, height - 29, 'Corne · Tastenbelegung', 22, white, True)
+    text(margin, height - 47, 'Aktive ZMK-Belegungen · Deutsch (QWERTZ)', 10, white)
+    text(margin, 23, '· = übernimmt darunter    × = deaktiviert    ^ und ` sind ggf. Tottasten', 9)
+
+    n_grid_rows = (len(layers) + 1) // 2
+    n_combo_rows = (len(combos) + 1) // 2
+    grid_top = height - 86
+    combo_bottom = 44
+    grid_bottom = combo_bottom + 16 * n_combo_rows + (32 if combos else 0) + 14 * len(conditions) + 10
+    panel_height = (grid_top - grid_bottom) / n_grid_rows
+    row_height = min(25, (panel_height - 30) / 4)
+    if row_height < 17:
+        raise ValueError('Tasten und Combos passen nicht lesbar auf eine A4-Seite')
+    for i, (name, entries) in enumerate(layers):
+        draw_layer(name, entries, margin + (i % 2) * (panel + gap), grid_top - (i // 2) * panel_height,
+                   row_height)
+
+    y = grid_bottom - 2
+    for source, target in conditions:
+        text(margin, y, f'{target}: {source} gleichzeitig halten.', 10, ink, True)
+        y -= 14
+    if combos:
+        text(margin, y - 5, 'Combos · Tasten gleichzeitig drücken', 11, teal, True)
+        for i, (chord, action, scope, timeout) in enumerate(combos):
+            x = margin + (i % 2) * (panel + gap)
+            yy = y - 24 - (i // 2) * 16
+            contents = f'{chord}  >  {action}   ·   {scope}, {timeout} ms'
             pdf.setFillColor(soft)
-            pdf.roundRect(margin - 4, y - 5, width - 2 * margin + 8, 17, 3, fill=1, stroke=0)
-            for x, value in zip(offsets, (chord, action, scope, f'{timeout} ms')):
-                text(x, y, value, 10)
-
-    shown = 0
-    for i in range(0, len(layers), 2):
-        pair = layers[i:i + 2]
-        start('Ebenen · ' + ' / '.join(name for name, _ in pair))
-        for j, (name, entries) in enumerate(pair):
-            draw_layer(name, entries, height - 113 - 135 * j)
-        if i + 2 >= len(layers):
-            y = height - 391
-            for source, target in conditions:
-                text(margin, y, f'{target}: {source} gleichzeitig halten.', 10, ink, True)
-                y -= 14
-            if combos and y >= 100:
-                text(margin, y - 8, 'Combos · Tasten gleichzeitig drücken', 13, teal, True)
-                shown = min(len(combos), int((y - 25 - 48) // 20))
-                draw_combos(combos[:shown], y - 25)
-        pdf.showPage()
-
-    for i in range(shown, len(combos), 16):
-        start('Combos · die Tasten gleichzeitig drücken')
-        draw_combos(combos[i:i + 16], height - 112)
-        pdf.showPage()
-
+            pdf.roundRect(x, yy - 4, panel, 14, 3, fill=1, stroke=0)
+            size = min(9, 9 * (panel - 14) / max(1, pdf.stringWidth(contents, 'Helvetica', 9)))
+            text(x + 6, yy, contents, size)
+    pdf.showPage()
     pdf.save()
     return buffer.getvalue()
 

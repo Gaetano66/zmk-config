@@ -36,6 +36,7 @@ class KeybindingsPDF(unittest.TestCase):
         commands = re.sub(r'(POMO_RESTART\s+)1', r'\g<1>4', self.commands)
         self.assertNotEqual(doc, pdf.render(pdf.parse(self.source, commands)))
         self.assertTrue(doc.startswith(b'%PDF-'))
+        self.assertEqual(len(re.findall(rb'/Type\s*/Page\b', doc)), 1)
 
     def test_layout_geometry_fails_closed(self):
         with self.assertRaisesRegex(ValueError, '42'):

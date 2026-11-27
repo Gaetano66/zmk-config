@@ -1,6 +1,6 @@
 # Corne · Tastenbelegung
 
-[PDF öffnen](Keybindings.pdf) — Basis, Lower, Raise, Lighting und Combos. Die Anzeige geht von einem deutschen QWERTZ-Hostlayout aus und zeigt bei unbekannten Bindings die ZMK-Aktion im Original. Maßgeblich ist `config/corne.keymap`; die PDF liest die aktiven Bindings, nicht die Diagramme in den Kommentaren.
+[PDF öffnen](Keybindings.pdf) — eine A4-Seite mit Basis, Lower, Raise, Lighting und Combos. Die Anzeige geht von einem deutschen QWERTZ-Hostlayout aus und zeigt bei unbekannten Bindings die ZMK-Aktion im Original. Maßgeblich ist `config/corne.keymap`; die PDF liest die aktiven Bindings, nicht die Diagramme in den Kommentaren.
 
 ## Automatische Aktualisierung
 

@@ -15,6 +15,7 @@
 #include <zmk/events/activity_state_changed.h>
 
 #include "pomodoro_timer.h"
+#include "oled_portrait.h"
 
 static struct pomodoro_timer timer;
 static int64_t show_settings_until;
@@ -59,7 +60,7 @@ static bool create_panel(void) {
         return false;
     }
     lv_obj_set_style_text_color(label, lv_obj_get_style_text_color(status, LV_PART_MAIN), LV_PART_MAIN);
-    lv_obj_center(label);
+    corne_oled_portrait_label(label, 0);
     return true;
 }
 
@@ -85,10 +86,10 @@ static void refresh_oled(bool running, enum pomodoro_phase phase, unsigned secon
     }
     char text[20];
     if (show_settings) {
-        snprintk(text, sizeof(text), "%s: %u min", selected == POMODORO_BREAK ? "Pause" : "Fokus",
+        snprintk(text, sizeof(text), "%s\n%u min", selected == POMODORO_BREAK ? "Pause" : "Fokus",
                  minutes);
     } else {
-        snprintk(text, sizeof(text), "%s %02u:%02u", phase == POMODORO_FOCUS ? "Fokus" : "Pause",
+        snprintk(text, sizeof(text), "%s\n%02u:%02u", phase == POMODORO_FOCUS ? "Fokus" : "Pause",
                  seconds / 60, seconds % 60);
     }
     lv_label_set_text(label, text);

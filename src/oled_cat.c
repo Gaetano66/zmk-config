@@ -10,6 +10,7 @@
 #include <zmk/events/battery_state_changed.h>
 
 #include "oled_cat_charging.h"
+#include "oled_portrait.h"
 
 enum { CAT_BOOT_TRIES = 20, CAT_OPEN_MS = 4000, CAT_BLINK_MS = 160, CAT_POWER_SAMPLE_MS = 100 };
 
@@ -124,8 +125,16 @@ static void delete_cat(lv_event_t *event) {
 
 static void attach_cat(struct k_work *work) {
     ARG_UNUSED(work);
-    /* The normal widgets remain in the corners; Pomodoro uses LVGL's top layer. */
+    /* Rotate the original ZMK label widgets, keeping their event subscriptions. */
     lv_obj_t *screen = lv_scr_act();
+    lv_coord_t offset = -48;
+    for (uint32_t i = 0; i < lv_obj_get_child_cnt(screen); ++i) {
+        lv_obj_t *child = lv_obj_get_child(screen, i);
+        if (lv_obj_check_type(child, &lv_label_class)) {
+            corne_oled_portrait_label(child, offset);
+            offset += 32;
+        }
+    }
     lv_obj_t *cat = lv_obj_create(screen);
     if (!cat) {
         return;
