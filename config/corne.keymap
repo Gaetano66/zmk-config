@@ -101,7 +101,7 @@
 
                 lighting_layer {
                         // Lighting (hold Lower + Raise)
-                        // . = transparent; RGB = on/off; KeyLED = key LEDs; Pomo = start/pause/resume
+                        // . = transparent; RGB = on/off; KeyLED = key LEDs; Pomo = start/stop
                         // Reset = restart focus; Phase = choose focus/break; -/+ = set duration
                         // |  .   |Color<|Color>|Effect| RGB  |KeyLED||  .   |  .   |  .   | Pomo |Reset |  .   |
                         // |  .   |  .   |  .   | Dim  |Bright|  .   ||  .   |  .   |  .   |  .   |  .   |  .   |

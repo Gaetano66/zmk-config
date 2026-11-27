@@ -3,6 +3,7 @@
 #include <zephyr/sys/atomic.h>
 #include <drivers/behavior.h>
 #include <zmk/keymap.h>
+#include <zmk/rgb_underglow.h>
 
 #include "key_rgb_frame.h"
 #include "pomodoro.h"
@@ -28,7 +29,26 @@ static int update_rgb(const struct device *dev, struct led_rgb *pixels, size_t c
     int err = key_rgb_frame(frame, pixels, count, atomic_get(&keys_enabled));
     if (err) { return err; }
     unsigned mode = corne_rgb_extra_mode();
-    unsigned pct = corne_pomodoro_rgb_progress();
+    uint32_t break_elapsed;
+    unsigned pct = corne_pomodoro_rgb_progress(&break_elapsed);
+    if (pct == POMO_RGB_BREAK) {
+        bool on = false;
+        zmk_rgb_underglow_get_state(&on);
+        if (on) {
+            unsigned brightness = zmk_rgb_underglow_calc_brt(0).b;
+            brightness = CONFIG_ZMK_RGB_UNDERGLOW_BRT_MIN +
+                         (CONFIG_ZMK_RGB_UNDERGLOW_BRT_MAX - CONFIG_ZMK_RGB_UNDERGLOW_BRT_MIN) *
+                             brightness / 100;
+            for (size_t i = 0; i < count; ++i) {
+                struct pomodoro_color c = pomodoro_break_color(IS_ENABLED(CONFIG_SHIELD_CORNE_RIGHT),
+                                                               i, break_elapsed, brightness * 255 / 100);
+                frame[i] = (struct led_rgb){.r = c.r, .g = c.g, .b = c.b};
+            }
+        } else {
+            memset(frame, 0, sizeof(frame));
+        }
+        return led_strip_update_rgb(DEVICE_DT_GET(STRIP), frame, count);
+    }
     if (mode || pct != POMO_RGB_INACTIVE) {
         const bool right = IS_ENABLED(CONFIG_SHIELD_CORNE_RIGHT);
         unsigned tick = k_uptime_get_32() / 100;
@@ -42,10 +62,7 @@ static int update_rgb(const struct device *dev, struct led_rgb *pixels, size_t c
             frame[i].b = frame[i].b * g / 255;
         }
     }
-    if (corne_pomodoro_dim_rgb()) {
-        /* Attenuation only: never light an off strip or a disabled zone. */
-        memset(frame, 0, sizeof(frame));
-    }
+
     return led_strip_update_rgb(DEVICE_DT_GET(STRIP), frame, count);
 }
 

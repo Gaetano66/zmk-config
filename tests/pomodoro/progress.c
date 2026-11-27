@@ -10,18 +10,20 @@ static void timer_progress(void) {
     assert(pomodoro_progress(&timer, 100) == 0);
     assert(pomodoro_progress(&timer, 750100) == 50);
     pomodoro_press(&timer, 750100);
-    assert(pomodoro_progress(&timer, 900000) == 50);
+    assert(pomodoro_progress(&timer, 900000) == POMO_RGB_INACTIVE);
     pomodoro_adjust(&timer, 1);
-    assert(pomodoro_progress(&timer, 900000) == 50);
+    assert(pomodoro_progress(&timer, 900000) == POMO_RGB_INACTIVE);
     pomodoro_press(&timer, 900000);
-    assert(pomodoro_progress(&timer, 1650000) == 100);
-    pomodoro_update(&timer, 1650000);
-    assert(pomodoro_progress(&timer, 1650000) == 0);
     assert(pomodoro_progress(&timer, 1800000) == 50);
-    pomodoro_update(&timer, 1950000);
-    assert(pomodoro_progress(&timer, 1950000) == POMO_RGB_INACTIVE);
-    pomodoro_restart(&timer, 2000000);
-    assert(pomodoro_progress(&timer, 2900000) == 50);
+    assert(pomodoro_update(&timer, 2700000));
+    assert(pomodoro_progress(&timer, 2700000) == POMO_RGB_BREAK);
+    assert(pomodoro_progress(&timer, 2999999) == POMO_RGB_BREAK);
+    assert(pomodoro_update(&timer, 3000000));
+    assert(pomodoro_progress(&timer, 3000000) == POMO_RGB_INACTIVE);
+    pomodoro_restart(&timer, 3000000);
+    assert(pomodoro_update(&timer, 4800000));
+    pomodoro_press(&timer, 4800001);
+    assert(pomodoro_progress(&timer, 4800001) == POMO_RGB_INACTIVE);
 }
 
 static void physical_fill(void) {
@@ -47,10 +49,27 @@ static void physical_fill(void) {
     assert(pomodoro_rgb_gain(true, 0, 68) > pomodoro_rgb_gain(true, 2, 68));
 }
 
+static void break_rainbow(void) {
+    for (unsigned side = 0; side < 2; ++side) {
+        for (size_t led = 0; led < POMO_RGB_LEDS; ++led) {
+            struct pomodoro_color off = pomodoro_break_color(side, led, 800, 0);
+            assert(!off.r && !off.g && !off.b);
+            struct pomodoro_color start = pomodoro_break_color(side, led, 0, 120);
+            struct pomodoro_color later = pomodoro_break_color(side, led, 1800, 120);
+            assert(start.r || start.g || start.b);
+            assert(start.r <= 120 && start.g <= 120 && start.b <= 120);
+            assert(start.r != later.r || start.g != later.g || start.b != later.b);
+        }
+    }
+}
+
 int main(void) {
     timer_progress();
     physical_fill();
+    break_rainbow();
     assert(pomodoro_rgb_peer_progress(73, 4999) == 73);
     assert(pomodoro_rgb_peer_progress(73, POMO_RGB_PEER_TIMEOUT_MS) == POMO_RGB_INACTIVE);
-    assert(pomodoro_rgb_peer_progress(102, 0) == POMO_RGB_INACTIVE);
+    assert(pomodoro_rgb_peer_progress(POMO_RGB_BREAK, 0) == POMO_RGB_BREAK);
+    assert(pomodoro_rgb_peer_progress(POMO_RGB_BREAK, POMO_RGB_PEER_TIMEOUT_MS) == POMO_RGB_INACTIVE);
+    assert(pomodoro_rgb_peer_progress(103, 0) == POMO_RGB_INACTIVE);
 }

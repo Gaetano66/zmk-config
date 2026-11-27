@@ -4,7 +4,7 @@
 static void focus_and_break(void) {
     struct pomodoro_timer t = {0};
     assert(t.phase == POMODORO_READY && !t.running);
-    assert(!pomodoro_press(&t, 100));
+    pomodoro_press(&t, 100);
     assert(t.phase == POMODORO_FOCUS && t.running);
     assert(pomodoro_remaining_ms(&t, 100) == 25 * 60 * 1000);
     int64_t focus_due = 100 + 25 * 60 * 1000;
@@ -18,20 +18,23 @@ static void focus_and_break(void) {
     assert(!pomodoro_update(&t, focus_due + 5 * 60 * 1000 + 1));
 }
 
-static void pause_and_resume(void) {
+static void stop_and_start_fresh(void) {
     struct pomodoro_timer t = {0};
     pomodoro_press(&t, 0);
     pomodoro_press(&t, 1234);
-    assert(t.phase == POMODORO_FOCUS && !t.running);
-    assert(pomodoro_remaining_ms(&t, 9000000) == 25 * 60 * 1000 - 1234);
+    assert(t.phase == POMODORO_READY && !t.running);
+    assert(pomodoro_remaining_ms(&t, 1234) == 0);
     assert(!pomodoro_update(&t, 9000000));
     pomodoro_press(&t, 9000000);
     assert(t.phase == POMODORO_FOCUS && t.running);
-    assert(pomodoro_remaining_ms(&t, 9000001) == 25 * 60 * 1000 - 1235);
-    assert(pomodoro_update(&t, 9000000 + 25 * 60 * 1000 - 1234));
-    pomodoro_press(&t, 9000000 + 25 * 60 * 1000 - 1234 + 4321);
-    assert(t.phase == POMODORO_BREAK && !t.running);
-    assert(pomodoro_remaining_ms(&t, 99999999) == 5 * 60 * 1000 - 4321);
+    assert(pomodoro_remaining_ms(&t, 9000000) == 25 * 60 * 1000);
+    assert(pomodoro_update(&t, 9000000 + 25 * 60 * 1000));
+    pomodoro_press(&t, 9000000 + 25 * 60 * 1000 + 4321);
+    assert(t.phase == POMODORO_READY && !t.running);
+    assert(pomodoro_remaining_ms(&t, 99999999) == 0);
+    pomodoro_restart(&t, 0);
+    pomodoro_press(&t, 30 * 60 * 1000);
+    assert(t.phase == POMODORO_READY && !t.running);
 }
 
 static void late_updates_use_absolute_deadlines(void) {
@@ -44,14 +47,6 @@ static void late_updates_use_absolute_deadlines(void) {
     pomodoro_press(&t, 32 * 60 * 1000);
     assert(pomodoro_update(&t, 63 * 60 * 1000));
     assert(t.phase == POMODORO_READY && !t.running);
-}
-
-static void blink_is_two_brief_blackout_pulses(void) {
-    assert(!pomodoro_rgb_dim_at(-1));
-    assert(pomodoro_rgb_dim_at(0) && pomodoro_rgb_dim_at(179));
-    assert(!pomodoro_rgb_dim_at(180) && !pomodoro_rgb_dim_at(359));
-    assert(pomodoro_rgb_dim_at(360) && pomodoro_rgb_dim_at(539));
-    assert(!pomodoro_rgb_dim_at(540) && !pomodoro_rgb_dim_at(900000));
 }
 
 static void configurable_restart(void) {
@@ -82,7 +77,6 @@ static void configurable_restart(void) {
 int main(void) {
     configurable_restart();
     focus_and_break();
-    pause_and_resume();
+    stop_and_start_fresh();
     late_updates_use_absolute_deadlines();
-    blink_is_two_brief_blackout_pulses();
 }

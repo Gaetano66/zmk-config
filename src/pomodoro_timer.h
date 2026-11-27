@@ -9,7 +9,6 @@ struct pomodoro_timer {
     enum pomodoro_phase phase;
     bool running;
     int64_t deadline_ms;
-    int64_t paused_ms;
     unsigned phase_ms;
     enum pomodoro_phase selected;
     unsigned focus_minutes;
@@ -43,11 +42,17 @@ static inline void pomodoro_restart(struct pomodoro_timer *timer, int64_t now) {
     timer->running = true;
     timer->phase_ms = pomodoro_minutes(timer, POMODORO_FOCUS) * POMODORO_MINUTE_MS;
     timer->deadline_ms = now + timer->phase_ms;
-    timer->paused_ms = 0;
+}
+
+static inline void pomodoro_stop(struct pomodoro_timer *timer) {
+    timer->phase = POMODORO_READY;
+    timer->running = false;
+    timer->deadline_ms = 0;
+    timer->phase_ms = 0;
 }
 
 static inline int64_t pomodoro_remaining_ms(const struct pomodoro_timer *timer, int64_t now) {
-    int64_t remaining = timer->running ? timer->deadline_ms - now : timer->paused_ms;
+    int64_t remaining = timer->running ? timer->deadline_ms - now : 0;
     return remaining > 0 ? remaining : 0;
 }
 
@@ -62,30 +67,15 @@ static inline bool pomodoro_update(struct pomodoro_timer *timer, int64_t now) {
         timer->deadline_ms += timer->phase_ms;
     }
     if (now >= timer->deadline_ms) {
-        timer->phase = POMODORO_READY;
-        timer->running = false;
-        timer->paused_ms = 0;
-        timer->phase_ms = 0;
+        pomodoro_stop(timer);
     }
     return true;
 }
 
-static inline bool pomodoro_press(struct pomodoro_timer *timer, int64_t now) {
-    bool changed = pomodoro_update(timer, now);
-    if (timer->phase == POMODORO_READY) {
-        pomodoro_restart(timer, now);
-        return changed;
-    }
+static inline void pomodoro_press(struct pomodoro_timer *timer, int64_t now) {
     if (timer->running) {
-        timer->paused_ms = pomodoro_remaining_ms(timer, now);
-        timer->running = false;
+        pomodoro_stop(timer);
     } else {
-        timer->deadline_ms = now + timer->paused_ms;
-        timer->running = true;
+        pomodoro_restart(timer, now);
     }
-    return changed;
-}
-
-static inline bool pomodoro_rgb_dim_at(int64_t elapsed_ms) {
-    return (elapsed_ms >= 0 && elapsed_ms < 180) || (elapsed_ms >= 360 && elapsed_ms < 540);
 }

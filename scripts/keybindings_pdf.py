@@ -27,7 +27,7 @@ KEYS = {
     'C_VOL_UP': 'Lauter', 'C_VOL_DN': 'Leiser', 'C_PP': 'Play/Pause',
     'C_NEXT': 'Nächster', 'C_PREV': 'Voriger',
 }
-POMO = ['Pomo Start/Pause', 'Pomo Neustart', 'Pomo Phase', 'Pomo kürzer', 'Pomo länger']
+POMO = ['Pomo Start/Stopp', 'Pomo Neustart', 'Pomo Phase', 'Pomo kürzer', 'Pomo länger']
 
 
 def strip_comments(text):
