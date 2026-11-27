@@ -1,0 +1,3 @@
+description: Select a Corne RGB effect or static palette color
+compatible: "zmk,behavior-corne-rgb-fx"
+include: one_param.yaml

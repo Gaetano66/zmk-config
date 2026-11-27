@@ -1,1 +1,5 @@
-target_sources_ifdef(CONFIG_ZMK_RGB_UNDERGLOW app PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../src/key_rgb.c)
+target_sources_ifdef(CONFIG_ZMK_RGB_UNDERGLOW app PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../src/key_rgb.c ${CMAKE_CURRENT_LIST_DIR}/../src/rgb_fx.c)
+target_sources(app PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../src/pomodoro.c)
+if(CONFIG_ZMK_DISPLAY AND (CONFIG_SHIELD_CORNE_LEFT OR CONFIG_SHIELD_CORNE_RIGHT))
+  target_sources(app PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../src/oled_cat.c)
+endif()

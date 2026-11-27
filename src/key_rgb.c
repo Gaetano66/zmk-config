@@ -5,6 +5,9 @@
 #include <zmk/keymap.h>
 
 #include "key_rgb_frame.h"
+#include "pomodoro.h"
+#include "rgb_fx_engine.h"
+unsigned corne_rgb_extra_mode(void);
 
 #define DT_DRV_COMPAT zmk_behavior_key_rgb
 #if DT_HAS_COMPAT_STATUS_OKAY(DT_DRV_COMPAT)
@@ -21,7 +24,22 @@ static atomic_t keys_enabled;
 static int update_rgb(const struct device *dev, struct led_rgb *pixels, size_t count) {
     struct led_rgb frame[STRIP_PIXELS];
     int err = key_rgb_frame(frame, pixels, count, atomic_get(&keys_enabled));
-    return err ? err : led_strip_update_rgb(DEVICE_DT_GET(STRIP), frame, count);
+    if (err) { return err; }
+    unsigned mode = corne_rgb_extra_mode();
+    if (mode) {
+        unsigned tick = k_uptime_get_32() / 100;
+        for (size_t i = 0; i < count; ++i) {
+            unsigned g = fx_gain(mode, i, tick);
+            frame[i].r = frame[i].r * g / 255;
+            frame[i].g = frame[i].g * g / 255;
+            frame[i].b = frame[i].b * g / 255;
+        }
+    }
+    if (corne_pomodoro_dim_rgb()) {
+        /* Attenuation only: never light an off strip or a disabled zone. */
+        memset(frame, 0, sizeof(frame));
+    }
+    return led_strip_update_rgb(DEVICE_DT_GET(STRIP), frame, count);
 }
 
 static int update_channels(const struct device *dev, uint8_t *channels, size_t count) {

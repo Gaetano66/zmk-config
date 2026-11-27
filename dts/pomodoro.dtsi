@@ -1,0 +1,9 @@
+/ {
+    behaviors {
+        pomodoro: pomodoro {
+            compatible = "zmk,behavior-corne-pomodoro";
+            #binding-cells = <1>;
+            display-name = "Pomodoro";
+        };
+    };
+};

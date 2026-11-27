@@ -12,6 +12,11 @@
     };
 
     behaviors {
+        rgb_fx: rgb_fx {
+            compatible = "zmk,behavior-corne-rgb-fx";
+            #binding-cells = <1>;
+            display-name = "RGB effects and palette";
+        };
         key_rgb: key_rgb {
             compatible = "zmk,behavior-key-rgb";
             #binding-cells = <0>;
