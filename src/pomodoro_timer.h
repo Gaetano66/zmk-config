@@ -10,6 +10,7 @@ struct pomodoro_timer {
     bool running;
     int64_t deadline_ms;
     int64_t paused_ms;
+    unsigned phase_ms;
     enum pomodoro_phase selected;
     unsigned focus_minutes;
     unsigned break_minutes;
@@ -40,7 +41,8 @@ static inline void pomodoro_adjust(struct pomodoro_timer *timer, int direction) 
 static inline void pomodoro_restart(struct pomodoro_timer *timer, int64_t now) {
     timer->phase = POMODORO_FOCUS;
     timer->running = true;
-    timer->deadline_ms = now + pomodoro_minutes(timer, POMODORO_FOCUS) * POMODORO_MINUTE_MS;
+    timer->phase_ms = pomodoro_minutes(timer, POMODORO_FOCUS) * POMODORO_MINUTE_MS;
+    timer->deadline_ms = now + timer->phase_ms;
     timer->paused_ms = 0;
 }
 
@@ -56,12 +58,14 @@ static inline bool pomodoro_update(struct pomodoro_timer *timer, int64_t now) {
     }
     if (timer->phase == POMODORO_FOCUS) {
         timer->phase = POMODORO_BREAK;
-        timer->deadline_ms += pomodoro_minutes(timer, POMODORO_BREAK) * POMODORO_MINUTE_MS;
+        timer->phase_ms = pomodoro_minutes(timer, POMODORO_BREAK) * POMODORO_MINUTE_MS;
+        timer->deadline_ms += timer->phase_ms;
     }
     if (now >= timer->deadline_ms) {
         timer->phase = POMODORO_READY;
         timer->running = false;
         timer->paused_ms = 0;
+        timer->phase_ms = 0;
     }
     return true;
 }

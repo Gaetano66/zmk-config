@@ -6,6 +6,7 @@
 
 #include "key_rgb_frame.h"
 #include "pomodoro.h"
+#include "pomodoro_progress.h"
 #include "rgb_fx_engine.h"
 unsigned corne_rgb_extra_mode(void);
 
@@ -17,6 +18,7 @@ unsigned corne_rgb_extra_mode(void);
 BUILD_ASSERT(DT_NODE_HAS_COMPAT(PROXY, zmk_key_rgb_strip));
 BUILD_ASSERT(DT_PROP(PROXY, chain_length) == STRIP_PIXELS);
 BUILD_ASSERT(DT_PROP(STRIP, chain_length) == STRIP_PIXELS);
+BUILD_ASSERT((int)STRIP_PIXELS == (int)POMO_RGB_LEDS);
 
 /* Volatile across boots; six underglow LEDs are visible by default. */
 static atomic_t keys_enabled;
@@ -26,10 +28,15 @@ static int update_rgb(const struct device *dev, struct led_rgb *pixels, size_t c
     int err = key_rgb_frame(frame, pixels, count, atomic_get(&keys_enabled));
     if (err) { return err; }
     unsigned mode = corne_rgb_extra_mode();
-    if (mode) {
+    unsigned pct = corne_pomodoro_rgb_progress();
+    if (mode || pct != POMO_RGB_INACTIVE) {
+        const bool right = IS_ENABLED(CONFIG_SHIELD_CORNE_RIGHT);
         unsigned tick = k_uptime_get_32() / 100;
         for (size_t i = 0; i < count; ++i) {
-            unsigned g = fx_gain(mode, i, tick);
+            unsigned g = pomodoro_rgb_gain(right, i, pct);
+            if (mode) {
+                g = g * fx_gain(mode, i, tick) / 255;
+            }
             frame[i].r = frame[i].r * g / 255;
             frame[i].g = frame[i].g * g / 255;
             frame[i].b = frame[i].b * g / 255;

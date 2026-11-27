@@ -4,6 +4,30 @@
 
 #include "pomodoro.h"
 #include "../dts/pomodoro_commands.h"
+#include "pomodoro_progress.h"
+
+enum { POMO_RGB_SYNC = 5 };  /* Internal transport command, never a keymap action. */
+static struct k_spinlock progress_lock;
+static unsigned progress_value = POMO_RGB_INACTIVE;
+static int64_t progress_seen;
+
+static void set_rgb_progress(unsigned value, int64_t now) {
+    k_spinlock_key_t key = k_spin_lock(&progress_lock);
+    progress_value = value;
+    progress_seen = now;
+    k_spin_unlock(&progress_lock, key);
+}
+
+unsigned corne_pomodoro_rgb_progress(void) {
+    k_spinlock_key_t key = k_spin_lock(&progress_lock);
+    unsigned value = progress_value;
+    int64_t seen = progress_seen;
+    k_spin_unlock(&progress_lock, key);
+    return IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
+               ? value
+               : pomodoro_rgb_peer_progress(value, k_uptime_get() - seen);
+}
+
 
 #if IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL) && IS_ENABLED(CONFIG_ZMK_DISPLAY)
 #include <zephyr/drivers/display.h>
@@ -13,6 +37,11 @@
 #include <zmk/display.h>
 #include <zmk/event_manager.h>
 #include <zmk/events/activity_state_changed.h>
+#include <zmk/split/central.h>
+#if IS_ENABLED(CONFIG_ZMK_SPLIT_BLE)
+#include <zmk/split/bluetooth/service.h>
+BUILD_ASSERT(sizeof(DEVICE_DT_NAME(DT_INST(0, DT_DRV_COMPAT))) <= ZMK_SPLIT_RUN_BEHAVIOR_DEV_LEN);
+#endif
 
 #include "pomodoro_timer.h"
 #include "oled_portrait.h"
@@ -22,6 +51,28 @@ static int64_t show_settings_until;
 K_MUTEX_DEFINE(timer_lock);
 static struct k_spinlock blink_lock;
 static int64_t blink_started_ms = -1000;
+
+/* The central owns the timer. Absolute snapshots also recover from dropped BLE writes. */
+static void publish_rgb_progress(unsigned value, int64_t now) {
+    static unsigned sent_value = POMO_RGB_INACTIVE;
+    static int64_t sent_at;
+    set_rgb_progress(value, now);
+    if (sent_value == value && (value == POMO_RGB_INACTIVE ||
+                                now - sent_at < POMO_RGB_HEARTBEAT_MS)) {
+        return;
+    }
+    struct zmk_behavior_binding binding = {
+        .behavior_dev = DEVICE_DT_NAME(DT_INST(0, DT_DRV_COMPAT)),
+        .param1 = POMO_RGB_SYNC,
+        .param2 = value,
+    };
+    struct zmk_behavior_binding_event event = {.timestamp = now};
+    for (uint8_t i = 0; i < ZMK_SPLIT_CENTRAL_PERIPHERAL_COUNT; ++i) {
+        zmk_split_central_invoke_behavior(i, &binding, event, true);
+    }
+    sent_value = value;
+    sent_at = now;
+}
 
 static void start_blink(int64_t now) {
     k_spinlock_key_t key = k_spin_lock(&blink_lock);
@@ -84,7 +135,7 @@ static void refresh_oled(bool running, enum pomodoro_phase phase, unsigned secon
     if (!panel && !create_panel()) {
         return;
     }
-    char text[20];
+    char text[32];
     if (show_settings) {
         snprintk(text, sizeof(text), "%s\n%u min", selected == POMODORO_BREAK ? "Pause" : "Fokus",
                  minutes);
@@ -118,6 +169,7 @@ static void refresh(struct k_work *work) {
     enum pomodoro_phase phase = timer.phase;
     unsigned remaining_ms = (unsigned)pomodoro_remaining_ms(&timer, now);
     unsigned seconds = (remaining_ms + 999) / 1000;
+    unsigned progress = pomodoro_progress(&timer, now);
     bool show_settings = now < show_settings_until;
     enum pomodoro_phase selected = timer.selected;
     unsigned minutes = pomodoro_minutes(&timer, selected);
@@ -130,10 +182,15 @@ static void refresh(struct k_work *work) {
         unsigned settings_ms = show_settings_until - now;
         next_ms = next_ms ? MIN(next_ms, settings_ms) : settings_ms;
     }
+    if (!running && progress != POMO_RGB_INACTIVE) {
+        /* Keep the frozen progress bar on a paused timer, including after reconnect. */
+        next_ms = next_ms ? MIN(next_ms, POMO_RGB_HEARTBEAT_MS) : POMO_RGB_HEARTBEAT_MS;
+    }
     if (next_ms) {
         k_work_reschedule_for_queue(zmk_display_work_q(), &pomodoro_work, K_MSEC(next_ms));
     }
     k_mutex_unlock(&timer_lock);
+    publish_rgb_progress(progress, now);
     refresh_oled(running, phase, seconds, show_settings, selected, minutes);
 }
 
@@ -150,8 +207,13 @@ ZMK_SUBSCRIPTION(pomodoro_display, zmk_activity_state_changed);
 #endif
 
 static int press(struct zmk_behavior_binding *binding, struct zmk_behavior_binding_event event) {
-    ARG_UNUSED(binding);
     ARG_UNUSED(event);
+    if (binding->param1 == POMO_RGB_SYNC) {
+        if (!IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL) && binding->param2 <= POMO_RGB_INACTIVE) {
+            set_rgb_progress(binding->param2, k_uptime_get());
+        }
+        return ZMK_BEHAVIOR_OPAQUE;
+    }
 #if IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL) && IS_ENABLED(CONFIG_ZMK_DISPLAY)
     k_mutex_lock(&timer_lock, K_FOREVER);
     int64_t now = k_uptime_get();
