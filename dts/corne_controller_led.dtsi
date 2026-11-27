@@ -1,0 +1,15 @@
+#include <dt-bindings/gpio/gpio.h>
+
+/* The nice!nano-compatible user LED is active high on P0.15. The charger LED
+ * is wired to the charge IC, not to this GPIO. Leave the OLED and RGB rails alone. */
+&blue_led {
+    status = "disabled";
+};
+
+&gpio0 {
+    controller-led-off {
+        gpio-hog;
+        gpios = <15 GPIO_ACTIVE_HIGH>;
+        output-low;
+    };
+};
