@@ -1,0 +1,21 @@
+#pragma once
+
+&led_strip { chain-length = <27>; };
+
+/ {
+    chosen { zmk,underglow = &key_rgb_strip; };
+
+    key_rgb_strip: key-rgb-strip {
+        compatible = "zmk,key-rgb-strip";
+        strip = <&led_strip>;
+        chain-length = <27>;
+    };
+
+    behaviors {
+        key_rgb: key_rgb {
+            compatible = "zmk,behavior-key-rgb";
+            #binding-cells = <0>;
+            display-name = "Toggle key LEDs";
+        };
+    };
+};

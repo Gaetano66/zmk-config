@@ -1,0 +1,11 @@
+description: Corne underglow and switch LED mask
+compatible: "zmk,key-rgb-strip"
+include: base.yaml
+properties:
+  strip:
+    type: phandle
+    required: true
+  chain-length:
+    type: int
+    required: true
+    const: 27

@@ -1,0 +1,3 @@
+description: Toggle the switch LED zone on connected halves
+compatible: "zmk,behavior-key-rgb"
+include: zero_param.yaml
