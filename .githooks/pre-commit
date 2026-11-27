@@ -1,0 +1,26 @@
+#!/bin/sh
+set -eu
+
+output=docs/Keybindings.pdf
+if git diff --cached --quiet -- config/corne.keymap dts/pomodoro_commands.h \
+    scripts/keybindings_pdf.py scripts/requirements-keybindings.txt .githooks/pre-commit "$output"; then
+    exit 0
+fi
+
+# Do not silently overwrite a manually edited, unstaged PDF.
+if ! git diff --quiet -- scripts/keybindings_pdf.py "$output"; then
+    printf '%s\n' 'Stage or restore unstaged changes in the PDF or its generator before committing.' >&2
+    exit 1
+fi
+
+python=${KEYBINDINGS_PYTHON:-}
+if [ -z "$python" ]; then
+    if [ -x .venv/bin/python ]; then
+        python=.venv/bin/python
+    else
+        python=python3
+    fi
+fi
+
+"$python" -B scripts/keybindings_pdf.py --staged
+git add -- "$output"
